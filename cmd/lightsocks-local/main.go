@@ -18,12 +18,14 @@ var version = "master"
 func main() {
 	log.SetFlags(log.Lshortfile)
 
+	configFile := cmd.ParseCmd()
+
 	// 默认配置
 	config := &cmd.Config{
 		ListenAddr: DefaultListenAddr,
 	}
-	config.ReadConfig()
-	config.SaveConfig()
+	config.ReadConfig(configFile)
+	config.SaveConfig(configFile)
 
 	// 解析配置
 	password, err := core.ParsePassword(config.Password)

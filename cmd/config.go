@@ -6,9 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
-
-	"github.com/mitchellh/go-homedir"
 )
 
 var (
@@ -22,19 +19,8 @@ type Config struct {
 	Password   string `json:"password"`
 }
 
-func init() {
-	home, _ := homedir.Dir()
-	// 默认的配置文件名称
-	configFilename := ".lightsocks.json"
-	// 如果用户有传配置文件，就使用用户传入的配置文件
-	if len(os.Args) == 2 {
-		configFilename = os.Args[1]
-	}
-	configPath = path.Join(home, configFilename)
-}
-
 // 保存配置到配置文件
-func (config *Config) SaveConfig() {
+func (config *Config) SaveConfig(configPath string) {
 	configJson, _ := json.MarshalIndent(config, "", "	")
 	err := ioutil.WriteFile(configPath, configJson, 0644)
 	if err != nil {
@@ -43,7 +29,7 @@ func (config *Config) SaveConfig() {
 	log.Printf("保存配置到文件 %s 成功\n", configPath)
 }
 
-func (config *Config) ReadConfig() {
+func (config *Config) ReadConfig(configPath string) {
 	// 如果配置文件存在，就读取配置文件中的配置 assign 到 config
 	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
 		log.Printf("从文件 %s 中读取配置\n", configPath)

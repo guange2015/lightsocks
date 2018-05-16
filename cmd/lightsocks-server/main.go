@@ -21,14 +21,17 @@ func main() {
 		// 随机端口失败就采用 7448
 		port = 7448
 	}
+
+	configFile := cmd.ParseCmd()
+
 	// 默认配置
 	config := &cmd.Config{
 		ListenAddr: fmt.Sprintf(":%d", port),
 		// 密码随机生成
 		Password: core.RandPassword().String(),
 	}
-	config.ReadConfig()
-	config.SaveConfig()
+	config.ReadConfig(configFile)
+	config.SaveConfig(configFile)
 
 	// 解析配置
 	password, err := core.ParsePassword(config.Password)
