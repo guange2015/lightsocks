@@ -1,7 +1,7 @@
 package local
 
 import (
-	"github.com/gwuhaolin/lightsocks/core"
+	"github.com/guange2015/lightsocks/core"
 	"log"
 	"net"
 )
@@ -90,13 +90,12 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	// 不需要验证，直接验证通过
 	userConn.Write([]byte{0x05, 0x00})
 
-
 	/**
-		          +----+-----+-------+------+----------+----------+
-		          |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
-		          +----+-----+-------+------+----------+----------+
-		          | 1  |  1  | X'00' |  1   | Variable |    2     |
-		          +----+-----+-------+------+----------+----------+
+	  +----+-----+-------+------+----------+----------+
+	  |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
+	  +----+-----+-------+------+----------+----------+
+	  | 1  |  1  | X'00' |  1   | Variable |    2     |
+	  +----+-----+-------+------+----------+----------+
 	*/
 
 	// 获取真正的远程服务的地址
@@ -120,7 +119,6 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 		log.Println(err)
 		return
 	}
-
 
 	defer proxyServer.Close()
 	// Conn被关闭时直接清除所有数据 不管没有发送的数据

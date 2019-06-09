@@ -2,7 +2,7 @@ package server
 
 import (
 	"encoding/binary"
-	"github.com/gwuhaolin/lightsocks/core"
+	"github.com/guange2015/lightsocks/core"
 	"log"
 	"net"
 )
@@ -58,18 +58,18 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 	buf := make([]byte, 256)
 
 	/**
-		          +----+-----+-------+------+----------+----------+
-		          |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
-		          +----+-----+-------+------+----------+----------+
-		          | 1  |  1  | X'00' |  1   | Variable |    2     |
-		          +----+-----+-------+------+----------+----------+
+	  +----+-----+-------+------+----------+----------+
+	  |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
+	  +----+-----+-------+------+----------+----------+
+	  | 1  |  1  | X'00' |  1   | Variable |    2     |
+	  +----+-----+-------+------+----------+----------+
 	*/
 
 	// 获取真正的远程服务的地址
 	n, err := lsServer.DecodeRead(localConn, buf)
 	// n 最短的长度为7 情况为 ATYP=3 DST.ADDR占用1字节 值为0x0
-	if err != nil || n < 4 || n>200 {
-		log.Println("read head error: ", err, " len: ",n)
+	if err != nil || n < 4 || n > 200 {
+		log.Println("read head error: ", err, " len: ", n)
 		return
 	}
 
@@ -114,11 +114,11 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 
 		// 响应客户端连接成功
 		/**
-		          +----+-----+-------+------+----------+----------+
-		          |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
-		          +----+-----+-------+------+----------+----------+
-		          | 1  |  1  | X'00' |  1   | Variable |    2     |
-		          +----+-----+-------+------+----------+----------+
+		  +----+-----+-------+------+----------+----------+
+		  |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
+		  +----+-----+-------+------+----------+----------+
+		  | 1  |  1  | X'00' |  1   | Variable |    2     |
+		  +----+-----+-------+------+----------+----------+
 		*/
 		// 响应客户端连接成功
 		lsServer.EncodeWrite(localConn, []byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
@@ -136,7 +136,6 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 	}()
 	// 从 dstServer 读取数据发送到 localUser，这里因为处在翻墙阶段出现网络错误的概率更大
 	lsServer.EncodeCopy(localConn, dstServer)
-
 
 	log.Println("close ip: ", dIP, " port: ", port)
 }
