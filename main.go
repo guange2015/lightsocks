@@ -33,6 +33,8 @@ func main() {
 		return
 	}
 
+	log.Println(runMode)
+
 	if strings.Compare(runMode, "server") == 0 {
 		log.SetFlags(log.Lshortfile)
 
@@ -101,6 +103,9 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
+
+
+		go local.StartProxy()
 
 		// 启动 local 端并监听
 		lsLocal := local.New(password, listenAddr, remoteAddr)

@@ -90,7 +90,7 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 		//	IP V6 address: X'04'
 		dIP = buf[1 : 1+net.IPv6len]
 	default:
-		log.Println("unkown atyp ", buf[0])
+		log.Println("unkown atype ", buf[0])
 		return
 	}
 	dPort := buf[n-2:]
