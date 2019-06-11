@@ -102,6 +102,8 @@ func main() {
 			log.Fatalln(err)
 		}
 
+		go local.StartWebServer(config)
+
 		// 启动 local 端并监听
 		lsLocal := local.New(password, listenAddr, remoteAddr)
 		log.Fatalln(lsLocal.Listen(func(listenAddr net.Addr) {
