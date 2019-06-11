@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 )
 
@@ -39,13 +40,14 @@ func (secureSocket *SecureSocket) EncodeCopy(dst *net.TCPConn, src *net.TCPConn)
 	buf := make([]byte, BufSize)
 	for {
 		readCount, errRead := src.Read(buf)
+
 		if errRead != nil {
-			if errRead != io.EOF {
-				return errRead
-			} else {
-				return nil
-			}
+			return errRead
 		}
+		if readCount <= 0 {
+			return errors.New("error read count")
+		}
+
 		if readCount > 0 {
 			writeCount, errWrite := secureSocket.EncodeWrite(dst, buf[0:readCount])
 			if errWrite != nil {
@@ -64,11 +66,10 @@ func (secureSocket *SecureSocket) DecodeCopy(dst *net.TCPConn, src *net.TCPConn)
 	for {
 		readCount, errRead := secureSocket.DecodeRead(src, buf)
 		if errRead != nil {
-			if errRead != io.EOF {
-				return errRead
-			} else {
-				return nil
-			}
+			return errRead
+		}
+		if readCount <= 0 {
+			return errors.New("error read count")
 		}
 		if readCount > 0 {
 			writeCount, errWrite := dst.Write(buf[0:readCount])
@@ -84,6 +85,8 @@ func (secureSocket *SecureSocket) DecodeCopy(dst *net.TCPConn, src *net.TCPConn)
 
 // 和远程的socket建立连接，他们之间的数据传输会加密
 func (secureSocket *SecureSocket) DialRemote() (*net.TCPConn, error) {
+
+	log.Printf("start connect server: %v\n", secureSocket.RemoteAddr)
 	remoteConn, err := net.DialTCP("tcp", nil, secureSocket.RemoteAddr)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("连接到远程服务器 %s 失败:%s", secureSocket.RemoteAddr, err))
