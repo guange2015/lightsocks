@@ -4,3 +4,4 @@ bin
 config.json
 dist/
 docker/.lightsocks.json
+lightsocks-*
