@@ -104,7 +104,7 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		go local.StartProxy()
+		go local.StartProxy(config)
 		go local.StartWebServer(config)
 
 		// 启动 local 端并监听

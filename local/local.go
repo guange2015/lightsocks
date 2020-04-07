@@ -106,11 +106,13 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 		return
 	}
 
+	log.Println("read address: ", n)
+
 	// CMD代表客户端请求的类型，值长度也是1个字节，有三种类型
 	// CONNECT X'01'
 	if buf[1] != 0x01 {
 		// 目前只支持 CONNECT
-		log.Println("only support CONNECT")
+		log.Println("only support CONNECT", buf[1])
 		return
 	}
 

@@ -3,17 +3,26 @@ package local
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"github.com/guange2015/lightsocks/cmd"
+	"github.com/guange2015/lightsocks/core"
 	"log"
 	"net"
 	"strings"
 )
 
-func StartProxy()  {
-	addr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:1097")
+var localSocksAddr string
+
+func StartProxy(config *cmd.Config) {
+	addr, _ := net.ResolveTCPAddr("tcp", config.Httpproxy)
 	listener, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	localSocksAddr = config.ListenAddr
+
+	log.Println("start http proxy: ", addr)
 
 	for {
 		conn, err := listener.AcceptTCP()
@@ -34,13 +43,11 @@ func handleConn(conn *net.TCPConn) {
 	close_chan := make(chan int)
 
 	for {
-		i, err := conn.Read(buf)
+		i, err := core.TcpRead(conn, buf)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		//log.Println(string(buf[:i]))
-
 
 		if strings.HasPrefix(string(buf[:i]), "CONNECT") {
 			//通过sock5连接服务器
@@ -53,9 +60,14 @@ func handleConn(conn *net.TCPConn) {
 				return
 			}
 
-			conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
 
-			defer tcpConn.Close()
+			core.TcpWrite(conn,[]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+
+			defer func() {
+				log.Println("tcpConn close")
+				tcpConn.Close()
+			}()
+
 
 			go func() {
 				copySocket(conn, tcpConn)
@@ -79,7 +91,7 @@ func handleConn(conn *net.TCPConn) {
 func copySocket(src *net.TCPConn, dst *net.TCPConn) {
 	buf := make([]byte, 255)
 	for {
-		i, err := src.Read(buf)
+		i, err :=  core.TcpRead(src, buf)
 		if err != nil {
 			log.Println(err)
 			return
@@ -87,7 +99,7 @@ func copySocket(src *net.TCPConn, dst *net.TCPConn) {
 		//log.Println(string(buf[:i]))
 
 		if dst != nil {
-			_, err := dst.Write(buf[:i])
+			_, err := core.TcpWrite(dst,buf[:i])
 			if err != nil {
 				log.Println(err)
 				return
@@ -99,20 +111,31 @@ func copySocket(src *net.TCPConn, dst *net.TCPConn) {
 func connectRemote(address string) (*net.TCPConn, error)  {
 	addr, _ := net.ResolveTCPAddr("tcp", address)
 
-	localSocks, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:1099")
+	log.Println("start connect: ", addr)
+
+	localSocks, _ := net.ResolveTCPAddr("tcp", localSocksAddr)
 	tcpConn, err := net.DialTCP("tcp", nil, localSocks)
 	if err!=nil{
+		log.Fatal("connect local socks error: ",  err)
 		return nil, err
 	}
 
 	buf := make([]byte, 255)
 
-	tcpConn.Write([]byte{0x5,0,0})
+	core.TcpWrite(tcpConn, []byte{0x5,0,0})
 
-	_, err = tcpConn.Read(buf)
+	n, err := core.TcpRead(tcpConn,buf)
 	if err != nil {
 		return nil, err
 	}
+
+	if n==2 && buf[0]==0x5 && buf[1]==0 {
+		//验证通过
+	} else {
+		return nil, errors.New("local socks verify error")
+	}
+
+
 
 	/**
 	  +----+-----+-------+------+----------+----------+
@@ -122,22 +145,22 @@ func connectRemote(address string) (*net.TCPConn, error)  {
 	  +----+-----+-------+------+----------+----------+
 	*/
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, 0x5)
-	binary.Write(buffer, binary.BigEndian, 0x1)
-	binary.Write(buffer, binary.BigEndian, 0x0)
+	binary.Write(buffer, binary.BigEndian, uint8(0x5))
+	binary.Write(buffer, binary.BigEndian, uint8(0x1))
+	binary.Write(buffer, binary.BigEndian, uint8(0x0))
 	//atyp 1 ip, 3 domain
-	binary.Write(buffer, binary.BigEndian, 0x1)
+	binary.Write(buffer, binary.BigEndian, uint8(0x1))
 	//地址
-	binary.Write(buffer, binary.BigEndian, addr.IP)
+	binary.Write(buffer, binary.BigEndian, addr.IP.To4())
 	//PORT
 	binary.Write(buffer, binary.BigEndian, uint16(addr.Port))
 
-	_, err = tcpConn.Read(buf)
+	bufs := buffer.Bytes()
+	_, err = core.TcpWrite(tcpConn, bufs)
 	if err != nil {
+		log.Println("write head:", err)
 		return nil, err
 	}
-
-	log.Println(buf[0])
 
 	return tcpConn, nil
 }

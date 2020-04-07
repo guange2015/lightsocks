@@ -12,6 +12,8 @@ type Config struct {
 	ListenAddr string `json:"listen"`
 	RemoteAddr string `json:"remote"`
 	Password   string `json:"password"`
+	Webserver  string `json:"webserver"`
+	Httpproxy  string `json:"httpproxy"`
 }
 
 // 保存配置到配置文件

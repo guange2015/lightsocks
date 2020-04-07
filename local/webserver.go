@@ -14,6 +14,7 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Password, %s\n", _config.Password)
 	fmt.Fprintf(w, "ListenAddr, %s\n", _config.ListenAddr)
 	fmt.Fprintf(w, "RemoteAddr, %s\n", _config.RemoteAddr)
+	fmt.Fprintf(w, "HttpProxy, %s\n", _config.Httpproxy)
 }
 
 func StartWebServer(config *cmd.Config) {
@@ -26,6 +27,6 @@ func StartWebServer(config *cmd.Config) {
 
 	http.HandleFunc("/config", configHandler)
 
-	log.Println("start web server, listen on :1098")
-	log.Fatal(http.ListenAndServe(":1098", nil))
+	log.Printf("start web server, listen on %v\n", config.Webserver)
+	log.Fatal(http.ListenAndServe(config.Webserver, nil))
 }
