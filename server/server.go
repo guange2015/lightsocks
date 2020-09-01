@@ -55,7 +55,6 @@ func (lsServer *LsServer) Listen(didListen func(listenAddr net.Addr)) error {
 // https://www.ietf.org/rfc/rfc1928.txt
 func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 	defer localConn.Close()
-	buf := make([]byte, 256)
 
 	/**
 	  +----+-----+-------+------+----------+----------+
@@ -66,35 +65,79 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 	*/
 
 	// 获取真正的远程服务的地址
-	n, err := lsServer.DecodeRead(localConn, buf)
+	atypeBuf := make([]byte, 1)
+	_, err := lsServer.DecodeReadFull(localConn, atypeBuf)
 	// n 最短的长度为7 情况为 ATYP=3 DST.ADDR占用1字节 值为0x0
-	if err != nil || n < 4 || n > 200 {
-		log.Println("read head error: ", err, " len: ", n)
+	if err != nil {
+		log.Println("read atype error: ", err)
 		return
 	}
 
 	var dIP []byte
 	// aType 代表请求的远程服务器地址类型，值长度1个字节，有三种类型
-	switch buf[0] {
+	switch atypeBuf[0] {
 	case 0x01:
 		//	IP V4 address: X'01'
-		dIP = buf[1 : 1+net.IPv4len]
+		ipv4Buf := make([]byte, net.IPv4len)
+		_, err := lsServer.DecodeReadFull(localConn, ipv4Buf)
+		// n 最短的长度为7 情况为 ATYP=3 DST.ADDR占用1字节 值为0x0
+		if err != nil {
+			log.Println("read ipv4 error: ", err)
+			return
+		}
+		dIP = ipv4Buf
+		log.Println("connect ipv4: ", ipv4Buf)
 	case 0x03:
 		//	DOMAINNAME: X'03'
-		ipAddr, err := net.ResolveIPAddr("ip", string(buf[2:n-2]))
+		domainLenBuf := make([]byte, 1)
+		_, err := lsServer.DecodeReadFull(localConn, domainLenBuf)
+		if err != nil {
+			log.Println("read domain len error: ", err)
+			return
+		}
+		if domainLenBuf[0] <= 0 || domainLenBuf[0] > 255 {
+			log.Println("domain len error: ", domainLenBuf[0])
+			return
+		}
+
+		domainBuf := make([]byte, int(domainLenBuf[0]))
+		_, err = lsServer.DecodeReadFull(localConn, domainBuf)
+		if err != nil {
+			log.Println("read domain error: ", err)
+			return
+		}
+
+		ipAddr, err := net.ResolveIPAddr("ip", string(domainBuf))
 		if err != nil {
 			return
 		}
 		dIP = ipAddr.IP
+
+		log.Println("connect domain: ", string(domainBuf))
 	case 0x04:
 		//	IP V6 address: X'04'
-		dIP = buf[1 : 1+net.IPv6len]
+		ipv6Buf := make([]byte, net.IPv6len)
+		_, err := lsServer.DecodeReadFull(localConn, ipv6Buf)
+		// n 最短的长度为7 情况为 ATYP=3 DST.ADDR占用1字节 值为0x0
+		if err != nil {
+			log.Println("read ipv6 error: ", err)
+			return
+		}
+		dIP = ipv6Buf
+		log.Println("connect ipv6: ", ipv6Buf)
 	default:
-		log.Println("unkown atype ", buf[0])
+		log.Println("unkown atype ", atypeBuf[0])
 		return
 	}
-	dPort := buf[n-2:]
-	port := int(binary.BigEndian.Uint16(dPort))
+
+	portBuf := make([]byte, 2)
+	_, err = lsServer.DecodeReadFull(localConn, portBuf)
+	if err != nil {
+		log.Println("read port error: ", err)
+		return
+	}
+
+	port := int(binary.BigEndian.Uint16(portBuf))
 	dstAddr := &net.TCPAddr{
 		IP:   dIP,
 		Port: port,
