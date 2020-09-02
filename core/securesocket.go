@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 )
 
@@ -22,6 +21,15 @@ type SecureSocket struct {
 // 从输入流里读取加密过的数据，解密后把原数据放到bs里
 func (secureSocket *SecureSocket) DecodeRead(conn *net.TCPConn, bs []byte) (n int, err error) {
 	n, err = conn.Read(bs)
+	if err != nil {
+		return
+	}
+	secureSocket.Cipher.decode(bs[:n])
+	return
+}
+
+func (secureSocket *SecureSocket) DecodeReadFull(conn *net.TCPConn, bs []byte) (n int, err error) {
+	n, err = io.ReadFull(conn, bs)
 	if err != nil {
 		return
 	}
@@ -85,8 +93,7 @@ func (secureSocket *SecureSocket) DecodeCopy(dst *net.TCPConn, src *net.TCPConn)
 
 // 和远程的socket建立连接，他们之间的数据传输会加密
 func (secureSocket *SecureSocket) DialRemote() (*net.TCPConn, error) {
-
-	log.Printf("start connect server: %v\n", secureSocket.RemoteAddr)
+	//log.Printf("start connect server: %v\n", secureSocket.RemoteAddr)
 	remoteConn, err := net.DialTCP("tcp", nil, secureSocket.RemoteAddr)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("连接到远程服务器 %s 失败:%s", secureSocket.RemoteAddr, err))

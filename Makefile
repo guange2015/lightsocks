@@ -7,3 +7,12 @@ osx:
 
 windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o lightsocks-win.exe
+
+
+
+@echo off
+set CGO_ENABLED=0
+set GOARCH=amd64
+set GOOS=linux
+go build -o lightsocks-linux
+pause

@@ -1,7 +1,9 @@
 package local
 
 import (
+	"bytes"
 	"github.com/guange2015/lightsocks/core"
+	"io"
 	"log"
 	"net"
 )
@@ -70,9 +72,11 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	   appear in the METHODS field.
 	*/
 	// 第一个字段VER代表Socks的版本，Socks5默认为0x05，其固定长度为1个字节
-	_, err := userConn.Read(buf)
+
+	versionBuf := make([]byte, 3)
+	_, err := io.ReadFull(userConn, versionBuf)
 	// 只支持版本5
-	if err != nil || buf[0] != 0x05 {
+	if err != nil || versionBuf[0] != 0x05 {
 		log.Println("VER only support 0x5")
 		return
 	}
@@ -99,20 +103,68 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	*/
 
 	// 获取真正的远程服务的地址
-	n, err := userConn.Read(buf)
-	// n 最短的长度为7 情况为 ATYP=3 DST.ADDR占用1字节 值为0x0
-	if err != nil || n < 7 {
-		log.Println("length != 7")
+	atypeBuf := make([]byte, 4)
+	_, err = io.ReadFull(userConn, atypeBuf)
+	if err != nil {
+		log.Println("read address head error: ", err)
 		return
 	}
 
-	log.Println("read address: ", n)
-
 	// CMD代表客户端请求的类型，值长度也是1个字节，有三种类型
 	// CONNECT X'01'
-	if buf[1] != 0x01 {
+	if atypeBuf[1] != 0x01 {
 		// 目前只支持 CONNECT
 		log.Println("only support CONNECT", buf[1])
+		return
+	}
+
+	sendBuf := &bytes.Buffer{}
+	sendBuf.Write(atypeBuf[3:])
+
+	switch atypeBuf[3] {
+	case 1: //ipv4
+		ipv4Buf := make([]byte, net.IPv4len+2)
+		_, err = io.ReadFull(userConn, ipv4Buf)
+		if err != nil {
+			log.Println("read ipv4 error: ", err)
+			return
+		}
+		sendBuf.Write(ipv4Buf)
+	case 3: //domain len+domain
+		domainLenBuf := make([]byte, 1)
+		_, err = io.ReadFull(userConn, domainLenBuf)
+		if err != nil {
+			log.Println("read domain len error: ", err)
+			return
+		}
+		sendBuf.Write(domainLenBuf)
+
+		if domainLenBuf[0] <= 0 || domainLenBuf[0] > 255 {
+			log.Println("domain len error: ", domainLenBuf[0])
+			return
+		}
+
+		domainBuf := make([]byte, int(domainLenBuf[0])+2)
+		_, err = io.ReadFull(userConn, domainBuf)
+		if err != nil {
+			log.Println("read domain error: ", err)
+			return
+		}
+
+		log.Printf("start connect %v\n", string(domainBuf[:domainLenBuf[0]]))
+		sendBuf.Write(domainBuf)
+
+	case 4: //ipv6
+		ipv6Buf := make([]byte, net.IPv6len+2)
+		_, err = io.ReadFull(userConn, ipv6Buf)
+		if err != nil {
+			log.Println("read ipv6 error: ", err)
+			return
+		}
+		sendBuf.Write(ipv6Buf)
+
+	default: //不支持
+		log.Println("unkown atype ", atypeBuf[3])
 		return
 	}
 
@@ -126,7 +178,7 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	// Conn被关闭时直接清除所有数据 不管没有发送的数据
 	proxyServer.SetLinger(0)
 
-	local.EncodeWrite(proxyServer, buf[3:n])
+	local.EncodeWrite(proxyServer, sendBuf.Bytes())
 
 	close_chan := make(chan int)
 
