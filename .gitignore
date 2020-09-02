@@ -5,3 +5,5 @@ config.json
 dist/
 docker/.lightsocks.json
 lightsocks-*
+/lightsocks.exe
+/client.json
