@@ -65,7 +65,7 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 	*/
 
 	// 获取真正的远程服务的地址
-	atypeBuf := make([]byte, 1)
+	atypeBuf := make([]byte, 4)
 	_, err := lsServer.DecodeReadFull(localConn, atypeBuf)
 	// n 最短的长度为7 情况为 ATYP=3 DST.ADDR占用1字节 值为0x0
 	if err != nil {
@@ -73,9 +73,15 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 		return
 	}
 
+	if atypeBuf[1] != 0x01 {
+		// 目前只支持 CONNECT
+		log.Println("only support CONNECT", atypeBuf[1])
+		return
+	}
+
 	var dIP []byte
 	// aType 代表请求的远程服务器地址类型，值长度1个字节，有三种类型
-	switch atypeBuf[0] {
+	switch atypeBuf[3] {
 	case 0x01:
 		//	IP V4 address: X'01'
 		ipv4Buf := make([]byte, net.IPv4len)
@@ -126,7 +132,7 @@ func (lsServer *LsServer) handleConn(localConn *net.TCPConn) {
 		dIP = ipv6Buf
 		log.Println("connect ipv6: ", ipv6Buf)
 	default:
-		log.Println("unkown atype ", atypeBuf[0])
+		log.Println("unkown atype ", atypeBuf[3])
 		return
 	}
 

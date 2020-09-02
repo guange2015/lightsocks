@@ -1,7 +1,6 @@
 package local
 
 import (
-	"bytes"
 	"github.com/guange2015/lightsocks/core"
 	"io"
 	"log"
@@ -58,7 +57,6 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	defer userConn.Close()
 
 	//socks5协议处理
-	buf := make([]byte, 256)
 	/**
 	   The localConn connects to the dstServer, and sends a ver
 	   identifier/method selection message:
@@ -94,80 +92,6 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	// 不需要验证，直接验证通过
 	userConn.Write([]byte{0x05, 0x00})
 
-	/**
-	  +----+-----+-------+------+----------+----------+
-	  |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
-	  +----+-----+-------+------+----------+----------+
-	  | 1  |  1  | X'00' |  1   | Variable |    2     |
-	  +----+-----+-------+------+----------+----------+
-	*/
-
-	// 获取真正的远程服务的地址
-	atypeBuf := make([]byte, 4)
-	_, err = io.ReadFull(userConn, atypeBuf)
-	if err != nil {
-		log.Println("read address head error: ", err)
-		return
-	}
-
-	// CMD代表客户端请求的类型，值长度也是1个字节，有三种类型
-	// CONNECT X'01'
-	if atypeBuf[1] != 0x01 {
-		// 目前只支持 CONNECT
-		log.Println("only support CONNECT", buf[1])
-		return
-	}
-
-	sendBuf := &bytes.Buffer{}
-	sendBuf.Write(atypeBuf[3:])
-
-	switch atypeBuf[3] {
-	case 1: //ipv4
-		ipv4Buf := make([]byte, net.IPv4len+2)
-		_, err = io.ReadFull(userConn, ipv4Buf)
-		if err != nil {
-			log.Println("read ipv4 error: ", err)
-			return
-		}
-		sendBuf.Write(ipv4Buf)
-	case 3: //domain len+domain
-		domainLenBuf := make([]byte, 1)
-		_, err = io.ReadFull(userConn, domainLenBuf)
-		if err != nil {
-			log.Println("read domain len error: ", err)
-			return
-		}
-		sendBuf.Write(domainLenBuf)
-
-		if domainLenBuf[0] <= 0 || domainLenBuf[0] > 255 {
-			log.Println("domain len error: ", domainLenBuf[0])
-			return
-		}
-
-		domainBuf := make([]byte, int(domainLenBuf[0])+2)
-		_, err = io.ReadFull(userConn, domainBuf)
-		if err != nil {
-			log.Println("read domain error: ", err)
-			return
-		}
-
-		log.Printf("start connect %v\n", string(domainBuf[:domainLenBuf[0]]))
-		sendBuf.Write(domainBuf)
-
-	case 4: //ipv6
-		ipv6Buf := make([]byte, net.IPv6len+2)
-		_, err = io.ReadFull(userConn, ipv6Buf)
-		if err != nil {
-			log.Println("read ipv6 error: ", err)
-			return
-		}
-		sendBuf.Write(ipv6Buf)
-
-	default: //不支持
-		log.Println("unkown atype ", atypeBuf[3])
-		return
-	}
-
 	proxyServer, err := local.DialRemote()
 	if err != nil {
 		log.Println(err)
@@ -177,8 +101,6 @@ func (local *LsLocal) handleConn(userConn *net.TCPConn) {
 	defer proxyServer.Close()
 	// Conn被关闭时直接清除所有数据 不管没有发送的数据
 	proxyServer.SetLinger(0)
-
-	local.EncodeWrite(proxyServer, sendBuf.Bytes())
 
 	close_chan := make(chan int)
 
