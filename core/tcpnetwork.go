@@ -2,7 +2,7 @@ package core
 
 import "net"
 
-const NetDebug = true
+const NetDebug = false
 
 func TcpRead(conn *net.TCPConn,b []byte) (int, error) {
 	read, err := conn.Read(b)
