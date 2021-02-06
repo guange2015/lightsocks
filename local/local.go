@@ -46,6 +46,8 @@ func (local *LsLocal) Listen(didListen func(listenAddr net.Addr)) error {
 			log.Println(err)
 			continue
 		}
+
+		log.Printf("有连接过来：%v\n", userConn)
 		// userConn被关闭时直接清除所有数据 不管没有发送的数据
 		userConn.SetLinger(0)
 		go local.handleConn(userConn)

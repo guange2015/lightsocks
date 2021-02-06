@@ -7,3 +7,5 @@ docker/.lightsocks.json
 lightsocks-*
 /lightsocks.exe
 /client.json
+lightsocks
+*.log

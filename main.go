@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/guange2015/lightsocks/bridge"
 	"github.com/guange2015/lightsocks/cmd"
 	"github.com/guange2015/lightsocks/core"
 	"github.com/guange2015/lightsocks/local"
@@ -126,6 +127,17 @@ func main() {
 	`, listenAddr, remoteAddr, password))
 			log.Printf("lightsocks-local:%s 启动成功 监听在 %s\n", version, listenAddr.String())
 		}))
+	} else if strings.Compare(runMode, "bridge") == 0{ //中转器
+		log.SetFlags(log.Lshortfile)
+
+		err, config := cmd.ReadConfig(configPath)
+		if err != nil {
+			log.Fatalf("读取配置文件失败: %v", err)
+		}
+		err = bridge.Run(config)
+		if err != nil {
+			log.Fatalf("启动中转服务器失败: %v", err)
+		}
 	} else {
 		flag.Usage()
 	}
